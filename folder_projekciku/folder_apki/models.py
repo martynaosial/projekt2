@@ -19,9 +19,13 @@ class Category(models.Model):
 class Product(models.Model):
     name = models.CharField(max_length=100)
     description = models.TextField()
-    category = models.ForeignKey(Category, on_delete=models.CASCADE)
+    category = models.ForeignKey('Category', on_delete=models.CASCADE)
     is_available = models.BooleanField(default=True)
-    date_added = models.DateTimeField(default=now)
+    date_added = models.DateTimeField(auto_now_add=True)
+
+    def check_availability(self):
+        return "Dostępny" if self.is_available else "Niedostępny"
+
     def __str__(self):
         return self.name
     
@@ -34,9 +38,12 @@ class Rental(models.Model):
         ('approved', 'Approved'),
         ('returned', 'Returned'),
     ]
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    user = models.ForeignKey('User', on_delete=models.CASCADE)
+    product = models.ForeignKey('Product', on_delete=models.CASCADE)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+
+    def is_pending(self):
+        return self.status == 'pending'
 
     def __str__(self):
         return f"{self.user.username} rented {self.product.name}"
