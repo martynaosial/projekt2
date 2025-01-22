@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from django.utils.timezone import now
 
 class User(AbstractUser):
     ROLE_CHOICES = [
@@ -20,9 +21,12 @@ class Product(models.Model):
     description = models.TextField()
     category = models.ForeignKey(Category, on_delete=models.CASCADE)
     is_available = models.BooleanField(default=True)
-
+    date_added = models.DateTimeField(default=now)
     def __str__(self):
         return self.name
+    
+    class Meta:
+        ordering = ['name']
 
 class Rental(models.Model):
     STATUS_CHOICES = [
