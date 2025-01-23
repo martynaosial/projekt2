@@ -10,25 +10,17 @@ from django.utils.timezone import now
 
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
-def product_view(request, pk=None):
+def product_view(request):
     """
-    Obsługuje operacje CRUD dla produktów.
+    Obsługuje operacje listy produktów oraz tworzenia nowych.
     """
     if request.method == 'GET':
-        if pk:
-            try:
-                product = Product.objects.get(pk=pk)
-            except Product.DoesNotExist:
-                return Response(status=status.HTTP_404_NOT_FOUND)
-            serializer = ProductSerializer(product)
-            return Response(serializer.data)
-        else:
-            products = Product.objects.filter(available=True)
-            serializer = ProductSerializer(products, many=True)
-            return Response(serializer.data)
+        products = Product.objects.filter(is_available=True)
+        serializer = ProductSerializer(products, many=True)
+        return Response(serializer.data)
 
     elif request.method == 'POST':
-        if not request.user.is_admin:
+        if not request.user.is_staff:  # Sprawdzanie uprawnień admina
             return Response({'error': 'Brak uprawnień'}, status=status.HTTP_403_FORBIDDEN)
         serializer = ProductSerializer(data=request.data)
         if serializer.is_valid():
@@ -37,21 +29,24 @@ def product_view(request, pk=None):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-@api_view(['PUT', 'DELETE'])
+@api_view(['GET', 'PUT', 'DELETE'])
 @permission_classes([IsAuthenticated])
 def product_detail_view(request, pk):
     """
-    Obsługuje aktualizację i usuwanie produktów.
+    Obsługuje szczegóły produktu, aktualizację oraz usuwanie.
     """
     try:
         product = Product.objects.get(pk=pk)
     except Product.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
+        return Response({'error': 'Produkt nie istnieje'}, status=status.HTTP_404_NOT_FOUND)
 
-    if not request.user.is_admin:
-        return Response({'error': 'Brak uprawnień'}, status=status.HTTP_403_FORBIDDEN)
+    if request.method == 'GET':
+        serializer = ProductSerializer(product)
+        return Response(serializer.data)
 
-    if request.method == 'PUT':
+    elif request.method == 'PUT':
+        if not request.user.is_staff:  # Sprawdzanie uprawnień admina
+            return Response({'error': 'Brak uprawnień'}, status=status.HTTP_403_FORBIDDEN)
         serializer = ProductSerializer(product, data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -59,8 +54,10 @@ def product_detail_view(request, pk):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'DELETE':
+        if not request.user.is_staff:  # Sprawdzanie uprawnień admina
+            return Response({'error': 'Brak uprawnień'}, status=status.HTTP_403_FORBIDDEN)
         product.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response({'message': 'Produkt został usunięty'}, status=status.HTTP_204_NO_CONTENT)
 
 
 @api_view(['GET'])
@@ -74,7 +71,7 @@ def category_products_view(request, category_id):
     except Category.DoesNotExist:
         return Response({'error': 'Kategoria nie istnieje'}, status=status.HTTP_404_NOT_FOUND)
 
-    products = Product.objects.filter(category=category, available=True)
+    products = Product.objects.filter(category=category, is_available=True)
     serializer = ProductSerializer(products, many=True)
     return Response(serializer.data)
 
@@ -105,7 +102,7 @@ def rental_view(request, pk=None):
             try:
                 rental = Rental.objects.get(pk=pk, user=request.user)
             except Rental.DoesNotExist:
-                return Response(status=status.HTTP_404_NOT_FOUND)
+                return Response({'error': 'Wypożyczenie nie istnieje'}, status=status.HTTP_404_NOT_FOUND)
             serializer = RentalSerializer(rental)
             return Response(serializer.data)
         else:

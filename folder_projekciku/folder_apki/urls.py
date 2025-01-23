@@ -9,16 +9,16 @@ from .views import (
 
 urlpatterns = [
     # Produkty
-    path('api/products/', product_view, name='product-list'),
-    path('api/products/<int:pk>/', product_detail_view, name='product-detail'),
+    path('products/', product_view, name='product-list'),
+    path('products/<int:pk>/', product_detail_view, name='product-detail'),
 
     # Kategorie
-    path('api/categories/<int:category_id>/products/', category_products_view, name='category-products'),
+    path('categories/<int:category_id>/products/', category_products_view, name='category-products'),
 
     # Wypożyczenia
-    path('api/rentals/', rental_view, name='rental-list'),
-    path('api/rentals/<int:pk>/', rental_view, name='rental-detail'),
+    path('rentals/', rental_view, name='rental-list'),
+    path('rentals/<int:pk>/', rental_view, name='rental-detail'),
 
     # Raport miesięczny
-    path('api/rentals/report/monthly/', monthly_rental_report, name='monthly-report'),
-    ]
+    path('rentals/report/monthly/', monthly_rental_report, name='monthly-report'),
+]
