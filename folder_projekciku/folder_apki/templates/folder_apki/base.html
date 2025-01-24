@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{% block title %}{% endblock %}</title>
+</head>
+<body>
+    <div id="header">
+        <h1>Wypozyczalnia ksiazek, filmow i laptopow</h1>
+    </div>
+    <div id="content">
+        {% block content %}
+        {% endblock %}
+    </div>
+    <div id="footer">
+        <p>Stopka</p>
+    </div>
+</body>
+</html>
+
+{% load static %}
+<link href="{% static 'css/style.css' %}" rel="stylesheet">

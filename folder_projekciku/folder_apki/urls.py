@@ -1,5 +1,6 @@
 from django.urls import path
-from .views import (
+from . import views
+from .views import(
     product_view,
     product_detail_view,
     category_products_view,
@@ -7,18 +8,22 @@ from .views import (
     rental_view,
 )
 
+
+
 urlpatterns = [
-    # Produkty
-    path('products/', product_view, name='product-list'),
-    path('products/<int:pk>/', product_detail_view, name='product-detail'),
+    # API JSON
+    path('products/', views.product_view, name='product-list'),
+    path('products/<int:pk>/', views.product_detail_view, name='product-detail'),
+    path('categories/<int:category_id>/products/', views.category_products_view, name='category-products'),
+    path('rentals/', views.rental_view, name='rental-list'),
+    path('rentals/<int:pk>/', views.rental_view, name='rental-detail'),
+    path('rentals/report/monthly/', views.monthly_rental_report, name='monthly-report'),
 
-    # Kategorie
-    path('categories/<int:category_id>/products/', category_products_view, name='category-products'),
-
-    # Wypożyczenia
-    path('rentals/', rental_view, name='rental-list'),
-    path('rentals/<int:pk>/', rental_view, name='rental-detail'),
-
-    # Raport miesięczny
-    path('rentals/report/monthly/', monthly_rental_report, name='monthly-report'),
+    # HTML
+    path('welcome/', views.welcome_view, name='welcome'),
+    path('products_html/', views.product_list_html, name='product-list-html'),
+    path('products_html/<int:id>/', views.product_detail_html, name='product-detail-html'),
 ]
+
+
+

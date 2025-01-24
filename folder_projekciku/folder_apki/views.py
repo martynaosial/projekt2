@@ -2,17 +2,24 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
+from django.http import HttpResponse
+from django.shortcuts import render
+from django.utils.timezone import now
+from django.db.models import Count
+import datetime
+
 from .models import Product, Rental, Category
 from .serializers import ProductSerializer, RentalSerializer, CategorySerializer
-from django.db.models import Count
-from django.utils.timezone import now
 
 
+# ====================
+# Widoki API (JSON)
+# ====================
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def product_view(request):
     """
-    Obsługuje operacje listy produktów oraz tworzenia nowych.
+    Obsługuje API listy produktów (GET) oraz tworzenie nowych (POST).
     """
     if request.method == 'GET':
         products = Product.objects.filter(is_available=True)
@@ -33,7 +40,7 @@ def product_view(request):
 @permission_classes([IsAuthenticated])
 def product_detail_view(request, pk):
     """
-    Obsługuje szczegóły produktu, aktualizację oraz usuwanie.
+    Obsługuje API szczegółów produktu, aktualizację oraz usuwanie.
     """
     try:
         product = Product.objects.get(pk=pk)
@@ -95,7 +102,7 @@ def monthly_rental_report(request):
 @permission_classes([IsAuthenticated])
 def rental_view(request, pk=None):
     """
-    Obsługuje wypożyczenia.
+    Obsługuje API wypożyczeń.
     """
     if request.method == 'GET':
         if pk:
@@ -118,3 +125,39 @@ def rental_view(request, pk=None):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# ====================
+# Widoki HTML
+# ====================
+def welcome_view(request):
+    """
+    Prosty widok pokazujący datę i czas w formacie HTML.
+    """
+    now = datetime.datetime.now()
+    html = f"""
+        <html><body>
+        Witaj użytkowniku! </br>
+        Aktualna data i czas na serwerze: {now}.
+        </body></html>"""
+    return HttpResponse(html)
+
+
+def product_list_html(request):
+    """
+    Wyświetla listę produktów w formacie HTML.
+    """
+    products = Product.objects.filter(is_available=True)
+    return render(request, 'folder_apki/product_list.html', {'products': products})
+
+
+def product_detail_html(request, id):
+    """
+    Wyświetla szczegóły produktu w formacie HTML.
+    """
+    try:
+        product = Product.objects.get(id=id)
+    except Product.DoesNotExist:
+        return HttpResponse('Produkt nie istnieje', status=404)
+    
+    return render(request, 'folder_apki/product_detail.html', {'product': product})

@@ -1,0 +1,15 @@
+{% extends "folder_apki/base.html" %}
+
+{% block title %}Lista produktów{% endblock %}
+
+{% block content %}
+    <h1>Lista produktów</h1>
+    <ul>
+        {% for product in products %}
+            <li>
+                <strong>{{ product.name }}</strong> - {{ product.description }}
+            </li>
+        {% endfor %}
+    </ul>
+{% endblock %}
+
