@@ -12,9 +12,12 @@ class CategorySerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'description']
 
 class ProductSerializer(serializers.ModelSerializer):
+    owner = serializers.ReadOnlyField(source='owner.username')  # Wyświetla nazwę użytkownika
+    owner_role = serializers.ReadOnlyField(source='owner.role')  # Wyświetla rolę użytkownika
+
     class Meta:
         model = Product
-        fields = ['id', 'name', 'description', 'category', 'is_available', 'date_added']
+        fields = ['id', 'name', 'description', 'category', 'is_available', 'date_added', 'owner', 'owner_role']
 
 class RentalSerializer(serializers.ModelSerializer):
     class Meta:

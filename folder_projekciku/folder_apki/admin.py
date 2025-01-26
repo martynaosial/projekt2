@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin  
 from .models import User, Category, Product, Rental
 
 @admin.register(Product)
@@ -21,3 +22,10 @@ class RentalAdmin(admin.ModelAdmin):
     def get_product_category(self, obj):
         return obj.product.category
 
+@admin.register(User)
+class CustomUserAdmin(UserAdmin):  # Dziedziczymy po UserAdmin dla dodatkowych funkcji
+    fieldsets = UserAdmin.fieldsets + (  # Dodanie pola "role" do edytora użytkownika
+        ('Dodatkowe informacje', {'fields': ('role',)}),
+    )
+    list_display = ('username', 'email', 'role', 'is_staff', 'is_active')  # Widoczne kolumny
+    list_filter = ('role', 'is_staff', 'is_active')  # Filtrowanie po roli

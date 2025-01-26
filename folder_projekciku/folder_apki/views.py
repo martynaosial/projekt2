@@ -1,7 +1,8 @@
-from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.authentication import TokenAuthentication, SessionAuthentication
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.response import Response
+from rest_framework import status
 from django.http import HttpResponse
 from django.shortcuts import render
 from django.utils.timezone import now
@@ -11,80 +12,119 @@ import datetime
 from .models import Product, Rental, Category
 from .serializers import ProductSerializer, RentalSerializer, CategorySerializer
 
+# ====================
+# Widoki HTML
+# ====================
+def product_detail_html(request, id):
+    """
+    Wyświetla szczegóły produktu w formacie HTML.
+    """
+    try:
+        product = Product.objects.get(id=id)
+    except Product.DoesNotExist:
+        return HttpResponse('Produkt nie istnieje', status=404)
+    
+    return render(request, 'folder_apki/product_detail.html', {'product': product})
+
+
+def product_list_html(request):
+    """
+    Wyświetla listę produktów w formacie HTML.
+    """
+    products = Product.objects.filter(is_available=True)
+    return render(request, 'folder_apki/product_list.html', {'products': products})
+
+
+def welcome_view(request):
+    """
+    Prosty widok pokazujący datę i czas w formacie HTML.
+    """
+    now = datetime.datetime.now()
+    html = f"""
+        <html><body>
+        Witaj użytkowniku! </br>
+        Aktualna data i czas na serwerze: {now}.
+        </body></html>"""
+    return HttpResponse(html)
+
 
 # ====================
 # Widoki API (JSON)
 # ====================
-@api_view(['GET', 'POST'])
-@permission_classes([IsAuthenticated])
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication, SessionAuthentication])  # Obsługa Token i Sesji
+@permission_classes([IsAuthenticated])  # Wymagane uwierzytelnienie
 def product_view(request):
     """
-    Obsługuje API listy produktów (GET) oraz tworzenie nowych (POST).
+    Wyświetla listę produktów.
+    - Admin widzi wszystkie produkty.
+    - Zwykły użytkownik widzi tylko swoje produkty.
     """
-    if request.method == 'GET':
+    if request.user.is_staff:
+        # Admin widzi wszystkie produkty
         products = Product.objects.filter(is_available=True)
-        serializer = ProductSerializer(products, many=True)
-        return Response(serializer.data)
+    else:
+        # Zwykły użytkownik widzi tylko swoje produkty
+        products = Product.objects.filter(owner=request.user, is_available=True)
 
-    elif request.method == 'POST':
-        if not request.user.is_staff:  # Sprawdzanie uprawnień admina
-            return Response({'error': 'Brak uprawnień'}, status=status.HTTP_403_FORBIDDEN)
-        serializer = ProductSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-@api_view(['GET', 'PUT', 'DELETE'])
-@permission_classes([IsAuthenticated])
-def product_detail_view(request, pk):
-    """
-    Obsługuje API szczegółów produktu, aktualizację oraz usuwanie.
-    """
-    try:
-        product = Product.objects.get(pk=pk)
-    except Product.DoesNotExist:
-        return Response({'error': 'Produkt nie istnieje'}, status=status.HTTP_404_NOT_FOUND)
-
-    if request.method == 'GET':
-        serializer = ProductSerializer(product)
-        return Response(serializer.data)
-
-    elif request.method == 'PUT':
-        if not request.user.is_staff:  # Sprawdzanie uprawnień admina
-            return Response({'error': 'Brak uprawnień'}, status=status.HTTP_403_FORBIDDEN)
-        serializer = ProductSerializer(product, data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    elif request.method == 'DELETE':
-        if not request.user.is_staff:  # Sprawdzanie uprawnień admina
-            return Response({'error': 'Brak uprawnień'}, status=status.HTTP_403_FORBIDDEN)
-        product.delete()
-        return Response({'message': 'Produkt został usunięty'}, status=status.HTTP_204_NO_CONTENT)
-
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def category_products_view(request, category_id):
-    """
-    Wyświetla produkty z wybranej kategorii.
-    """
-    try:
-        category = Category.objects.get(pk=category_id)
-    except Category.DoesNotExist:
-        return Response({'error': 'Kategoria nie istnieje'}, status=status.HTTP_404_NOT_FOUND)
-
-    products = Product.objects.filter(category=category, is_available=True)
     serializer = ProductSerializer(products, many=True)
     return Response(serializer.data)
 
 
 @api_view(['GET'])
-@permission_classes([IsAdminUser])
+@authentication_classes([TokenAuthentication, SessionAuthentication])
+@permission_classes([IsAuthenticated])  # Wymagane uwierzytelnienie
+def product_detail_view(request, pk):
+    """
+    Wyświetla szczegóły produktu.
+    - Admin widzi wszystkie produkty.
+    - Zwykły użytkownik widzi tylko swoje produkty.
+    """
+    try:
+        if request.user.is_staff:
+            # Admin może widzieć dowolny produkt
+            product = Product.objects.get(pk=pk)
+        else:
+            # Zwykły użytkownik widzi tylko swoje produkty
+            product = Product.objects.get(pk=pk, owner=request.user)
+    except Product.DoesNotExist:
+        return Response({'error': 'Produkt nie istnieje lub nie należy do użytkownika.'}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = ProductSerializer(product)
+    return Response(serializer.data)
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication, SessionAuthentication])
+@permission_classes([IsAuthenticated])  # Wymagane uwierzytelnienie
+def product_search(request, query):
+    """
+    Wyszukuje produkty zalogowanego użytkownika na podstawie fragmentu nazwy.
+    """
+    products = Product.objects.filter(owner=request.user, name__icontains=query)
+    serializer = ProductSerializer(products, many=True)
+    return Response(serializer.data)
+
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication, SessionAuthentication])
+@permission_classes([IsAuthenticated])  # Wymagane uwierzytelnienie
+def category_products_view(request, category_id):
+    """
+    Wyświetla produkty z wybranej kategorii przypisane do zalogowanego użytkownika.
+    """
+    try:
+        category = Category.objects.get(pk=category_id)
+    except Category.DoesNotExist:
+        return Response({'error': 'Kategoria nie istnieje.'}, status=status.HTTP_404_NOT_FOUND)
+
+    products = Product.objects.filter(category=category, owner=request.user, is_available=True)
+    serializer = ProductSerializer(products, many=True)
+    return Response(serializer.data)
+
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAdminUser])  # Tylko administratorzy
 def monthly_rental_report(request):
     """
     Zwraca raport miesięczny wypożyczeń.
@@ -99,7 +139,8 @@ def monthly_rental_report(request):
 
 
 @api_view(['GET', 'POST'])
-@permission_classes([IsAuthenticated])
+@authentication_classes([TokenAuthentication, SessionAuthentication])
+@permission_classes([IsAuthenticated])  # Wymagane uwierzytelnienie
 def rental_view(request, pk=None):
     """
     Obsługuje API wypożyczeń.
@@ -125,39 +166,34 @@ def rental_view(request, pk=None):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-# ====================
-# Widoki HTML
-# ====================
-def welcome_view(request):
+    
+@api_view(['DELETE'])
+@authentication_classes([TokenAuthentication, SessionAuthentication])
+@permission_classes([IsAdminUser])  # Tylko administratorzy
+def delete_product_admin(request, pk):
     """
-    Prosty widok pokazujący datę i czas w formacie HTML.
-    """
-    now = datetime.datetime.now()
-    html = f"""
-        <html><body>
-        Witaj użytkowniku! </br>
-        Aktualna data i czas na serwerze: {now}.
-        </body></html>"""
-    return HttpResponse(html)
-
-
-def product_list_html(request):
-    """
-    Wyświetla listę produktów w formacie HTML.
-    """
-    products = Product.objects.filter(is_available=True)
-    return render(request, 'folder_apki/product_list.html', {'products': products})
-
-
-def product_detail_html(request, id):
-    """
-    Wyświetla szczegóły produktu w formacie HTML.
+    Usuwa dowolny produkt na podstawie jego ID.
+    Endpoint dostępny tylko dla adminów.
     """
     try:
-        product = Product.objects.get(id=id)
+        product = Product.objects.get(pk=pk)
     except Product.DoesNotExist:
-        return HttpResponse('Produkt nie istnieje', status=404)
+        return Response({'error': 'Produkt nie istnieje.'}, status=status.HTTP_404_NOT_FOUND)
+
+    product.delete()
+    return Response({'message': f'Produkt o ID {pk} został usunięty.'}, status=status.HTTP_204_NO_CONTENT)
+
+def register_view(request):
+    """
+    Widok obsługujący rejestrację użytkowników.
+    """
+    if request.method == 'POST':
+        form = UserCreationForm(request.POST)
+        if form.is_valid():
+            form.save()  # Zapisuje nowego użytkownika w bazie danych
+            messages.success(request, 'Konto zostało utworzone! Możesz się teraz zalogować.')
+            return redirect('login')  # Przekierowanie na stronę logowania
+    else:
+        form = UserCreationForm()
     
-    return render(request, 'folder_apki/product_detail.html', {'product': product})
+    return render(request, 'register.html', {'form': form})
