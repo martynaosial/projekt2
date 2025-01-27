@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from .views import register_view
 from .views import (
     product_view,
     product_detail_view,
@@ -21,6 +22,8 @@ urlpatterns = [
     path('rentals/report/monthly/', views.monthly_rental_report, name='monthly-report'),
     path('products/search/<str:query>/', views.product_search, name='product-search'),
     path('products/delete/<int:pk>/', views.delete_product_admin, name='delete-product-admin'),
+    path('register/', register_view, name='register'),  # Ścieżka do rejestracji
+
 
     # HTML
     path('welcome/', views.welcome_view, name='welcome'),

@@ -1,15 +1,35 @@
-{% extends "folder_apki/base.html" %}
-
-{% block title %}Lista produktów{% endblock %}
-
-{% block content %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lista produktów</title>
+</head>
+<body>
     <h1>Lista produktów</h1>
-    <ul>
-        {% for product in products %}
-            <li>
-                <strong>{{ product.name }}</strong> - {{ product.description }}
-            </li>
-        {% endfor %}
-    </ul>
-{% endblock %}
 
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Nazwa</th>
+                <th>Opis</th>
+                <th>Właściciel</th>
+                <th>Dostępność</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for product in products %}
+            <tr>
+                <td>{{ product.name }}</td>
+                <td>{{ product.description }}</td>
+                <td>{{ product.owner.username }}</td>
+                <td>{{ product.check_availability }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4">Brak produktów do wyświetlenia</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

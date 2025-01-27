@@ -57,7 +57,6 @@ ROOT_URLCONF = 'folder_projekciku.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -139,3 +138,9 @@ REST_FRAMEWORK = {
 }
 
 LOGIN_REDIRECT_URL = '/folder_apki/products/' 
+# Po zalogowaniu
+# Po wylogowaniu
+LOGOUT_REDIRECT_URL = '/accounts/login/'
+# Po zalogowaniu użytkownik trafi na listę produktów w widoku HTML
+LOGIN_REDIRECT_URL = '/folder_apki/products_html/'
+

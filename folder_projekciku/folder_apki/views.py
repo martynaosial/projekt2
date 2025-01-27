@@ -4,9 +4,11 @@ from rest_framework.decorators import api_view, authentication_classes, permissi
 from rest_framework.response import Response
 from rest_framework import status
 from django.http import HttpResponse
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.utils.timezone import now
 from django.db.models import Count
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib import messages
 import datetime
 
 from .models import Product, Rental, Category
@@ -30,8 +32,16 @@ def product_detail_html(request, id):
 def product_list_html(request):
     """
     Wyświetla listę produktów w formacie HTML.
+    - Admin widzi wszystkie produkty.
+    - Zwykły użytkownik widzi tylko swoje produkty.
     """
-    products = Product.objects.filter(is_available=True)
+    if request.user.is_staff:
+        # Admin widzi wszystkie produkty
+        products = Product.objects.filter(is_available=True)
+    else:
+        # Zwykły użytkownik widzi tylko swoje produkty
+        products = Product.objects.filter(owner=request.user, is_available=True)
+    
     return render(request, 'folder_apki/product_list.html', {'products': products})
 
 
@@ -48,12 +58,28 @@ def welcome_view(request):
     return HttpResponse(html)
 
 
+def register_view(request):
+    """
+    Widok obsługujący rejestrację użytkowników.
+    """
+    if request.method == 'POST':
+        form = UserCreationForm(request.POST)
+        if form.is_valid():
+            form.save()  # Tworzy nowego użytkownika
+            messages.success(request, 'Konto zostało utworzone! Możesz się teraz zalogować.')
+            return redirect('login')  # Przekierowanie na stronę logowania
+    else:
+        form = UserCreationForm()
+    
+    return render(request, 'folder_apki/register.html', {'form': form})
+
+
 # ====================
 # Widoki API (JSON)
 # ====================
 @api_view(['GET'])
-@authentication_classes([TokenAuthentication, SessionAuthentication])  # Obsługa Token i Sesji
-@permission_classes([IsAuthenticated])  # Wymagane uwierzytelnienie
+@authentication_classes([TokenAuthentication, SessionAuthentication])
+@permission_classes([IsAuthenticated])
 def product_view(request):
     """
     Wyświetla listę produktów.
@@ -61,10 +87,8 @@ def product_view(request):
     - Zwykły użytkownik widzi tylko swoje produkty.
     """
     if request.user.is_staff:
-        # Admin widzi wszystkie produkty
         products = Product.objects.filter(is_available=True)
     else:
-        # Zwykły użytkownik widzi tylko swoje produkty
         products = Product.objects.filter(owner=request.user, is_available=True)
 
     serializer = ProductSerializer(products, many=True)
@@ -73,7 +97,7 @@ def product_view(request):
 
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication, SessionAuthentication])
-@permission_classes([IsAuthenticated])  # Wymagane uwierzytelnienie
+@permission_classes([IsAuthenticated])
 def product_detail_view(request, pk):
     """
     Wyświetla szczegóły produktu.
@@ -82,10 +106,8 @@ def product_detail_view(request, pk):
     """
     try:
         if request.user.is_staff:
-            # Admin może widzieć dowolny produkt
             product = Product.objects.get(pk=pk)
         else:
-            # Zwykły użytkownik widzi tylko swoje produkty
             product = Product.objects.get(pk=pk, owner=request.user)
     except Product.DoesNotExist:
         return Response({'error': 'Produkt nie istnieje lub nie należy do użytkownika.'}, status=status.HTTP_404_NOT_FOUND)
@@ -93,21 +115,31 @@ def product_detail_view(request, pk):
     serializer = ProductSerializer(product)
     return Response(serializer.data)
 
+
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication, SessionAuthentication])
-@permission_classes([IsAuthenticated])  # Wymagane uwierzytelnienie
+@permission_classes([IsAuthenticated])
 def product_search(request, query):
     """
-    Wyszukuje produkty zalogowanego użytkownika na podstawie fragmentu nazwy.
+    Wyszukuje produkty na podstawie fragmentu nazwy.
+    - Admin widzi wszystkie produkty pasujące do zapytania.
+    - Zwykły użytkownik widzi tylko swoje produkty pasujące do zapytania.
     """
-    products = Product.objects.filter(owner=request.user, name__icontains=query)
+    if request.user.is_staff:
+        # Admin widzi wszystkie produkty pasujące do zapytania
+        products = Product.objects.filter(name__icontains=query)
+    else:
+        # Zwykły użytkownik widzi tylko swoje produkty pasujące do zapytania
+        products = Product.objects.filter(owner=request.user, name__icontains=query)
+    
     serializer = ProductSerializer(products, many=True)
     return Response(serializer.data)
 
 
+
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication, SessionAuthentication])
-@permission_classes([IsAuthenticated])  # Wymagane uwierzytelnienie
+@permission_classes([IsAuthenticated])
 def category_products_view(request, category_id):
     """
     Wyświetla produkty z wybranej kategorii przypisane do zalogowanego użytkownika.
@@ -123,8 +155,8 @@ def category_products_view(request, category_id):
 
 
 @api_view(['GET'])
-@authentication_classes([TokenAuthentication])
-@permission_classes([IsAdminUser])  # Tylko administratorzy
+@authentication_classes([TokenAuthentication, SessionAuthentication])
+@permission_classes([IsAdminUser])
 def monthly_rental_report(request):
     """
     Zwraca raport miesięczny wypożyczeń.
@@ -140,7 +172,7 @@ def monthly_rental_report(request):
 
 @api_view(['GET', 'POST'])
 @authentication_classes([TokenAuthentication, SessionAuthentication])
-@permission_classes([IsAuthenticated])  # Wymagane uwierzytelnienie
+@permission_classes([IsAuthenticated])
 def rental_view(request, pk=None):
     """
     Obsługuje API wypożyczeń.
@@ -166,10 +198,11 @@ def rental_view(request, pk=None):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+
+
 @api_view(['DELETE'])
 @authentication_classes([TokenAuthentication, SessionAuthentication])
-@permission_classes([IsAdminUser])  # Tylko administratorzy
+@permission_classes([IsAdminUser])
 def delete_product_admin(request, pk):
     """
     Usuwa dowolny produkt na podstawie jego ID.
@@ -182,18 +215,3 @@ def delete_product_admin(request, pk):
 
     product.delete()
     return Response({'message': f'Produkt o ID {pk} został usunięty.'}, status=status.HTTP_204_NO_CONTENT)
-
-def register_view(request):
-    """
-    Widok obsługujący rejestrację użytkowników.
-    """
-    if request.method == 'POST':
-        form = UserCreationForm(request.POST)
-        if form.is_valid():
-            form.save()  # Zapisuje nowego użytkownika w bazie danych
-            messages.success(request, 'Konto zostało utworzone! Możesz się teraz zalogować.')
-            return redirect('login')  # Przekierowanie na stronę logowania
-    else:
-        form = UserCreationForm()
-    
-    return render(request, 'register.html', {'form': form})
